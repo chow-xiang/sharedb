@@ -1,0 +1,34 @@
+---
+# mq 服务器授权
+
+test:
+  domain: hub.test.dui.ai
+  port: 1883
+  username: test
+  password: test
+  
+dev:
+  domain: hub.dev.dui.ai
+  port: 1883
+  username: test
+  password: test
+
+product:
+  domain: hub.dui.ai
+  port: 1883
+  username: test
+  password: test
+
+beta:
+  domain: hub.beta.dui.ai
+  port: 1883
+  username: test
+  password: test
+  
+review:
+  domain: hub.review.dui.ai
+  port: 1883
+  username: test
+  password: test
+
+
