@@ -9,6 +9,3 @@ exports.MEMO_REFRESH_RECORDINGS = 'memo/recods/+/refresh'
 
 // 录音结束指令
 exports.MEMO_CLIENT_STOP = 'memo/client/order/+/stop'
-
-// 富文本操作记录
-exports.MEMO_CLIENT_RICHTEXT_STORE = 'mome/clent/richtext/+/sync'

@@ -16,17 +16,21 @@ class Room extends Events {
 		}
 
 		ws.on('close', closeCb)
+		ws.on('error', closeCb)
 		this.wsPool.push(ws)
 	}
 
-	addStream (stream) {
+	addAgent (agent){
 		const closeCb = () => {
 			const index = this.wsPool.indexOf(stream)
 			this.wsPool.splice(index, 1)
 		}
 
-		stream.stream.on('close', closeCb)
-		this.wsPool.push(stream)
+		const stream = agent.stream
+		stream.on('close', closeCb)
+		stream.on('error', closeCb)
+
+		this.wsPool.push(agent)
 	}
 
 	// 向房间内所有的 ws 发送信息

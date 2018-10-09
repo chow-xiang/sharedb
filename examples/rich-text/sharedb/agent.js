@@ -98,18 +98,18 @@ Agent.prototype._subscribeToStream = function(collection, id, stream) {
 
   var agent = this;
   stream.on('data', function(data) {
-    // if (data.error) {
-    //   // Log then silently ignore errors in a subscription stream, since these
-    //   // may not be the client's fault, and they were not the result of a
-    //   // direct request by the client
-    //   console.error('Doc subscription stream error', collection, id, data.error);
-    //   return;
-    // }
+    if (data.error) {
+      // Log then silently ignore errors in a subscription stream, since these
+      // may not be the client's fault, and they were not the result of a
+      // direct request by the client
+      console.error('Doc subscription stream error', collection, id, data.error);
+      return;
+    }
 
-    // // 如果是来自 mqtt，并且不是操作发起的agent，不在重复发送
-    // if (data.from == 'mqtt') return
-    // if (agent._isOwnOp(collection, data)) return;
-    // agent._sendOp(collection, id, data);
+    // 如果是来自 mqtt，并且不是操作发起的agent，不在重复发送
+    if (data.from == 'mqtt' && data.fromClient == agent.clientId) return
+    if (agent._isOwnOp(collection, data)) return;
+    agent._sendOp(collection, id, data);
   });
   stream.on('end', function() {
     // The op stream is done sending, so release its reference
@@ -171,7 +171,6 @@ Agent.prototype.send = function(message) {
   if (this.closed) return
 
   this.backend.emit('send', this, message)
-  // this.stream.write(message)
   this.stream.write(message)
 };
 
@@ -292,12 +291,6 @@ Agent.prototype._handleMessage = function(request, callback) {
     var errMessage = this._checkRequest(request);
     if (errMessage) return callback({code: 4000, message: errMessage});
 
-    // 如果来自mqtt，并且不是本 agent 发送的，直接发送 op 包
-    if (request.from == 'mqtt' && request.fromClient != this.clientId) {
-      var op = this._createOp(request)
-      return this._sendOp(request.c, request.d, op, () => {})
-    }
-
     switch (request.a) {
       case 'qf':
         return this._queryFetch(request.id, request.c, request.q, getQueryOptions(request), callback);
@@ -320,6 +313,9 @@ Agent.prototype._handleMessage = function(request, callback) {
       case 'op':
         var op = this._createOp(request);
         if (!op) return callback({code: 4000, message: 'Invalid op message'});
+
+        op.from = request.from
+        op.fromClient = request.fromClient
         return this._submit(request.c, request.d, op, callback);
       case 'nf':
         return this._fetchSnapshot(request.c, request.d, request.v, callback);
@@ -556,7 +552,7 @@ Agent.prototype._submit = function(collection, id, op, callback) {
   var agent = this;
   this.backend.submit(this, collection, id, op, null, function(err, ops) {
     // Message to acknowledge the op was successfully submitted
-    var ack = {src: op.src, seq: op.seq, v: op.v};
+    var ack = { src: op.src, seq: op.seq, v: op.v, from: op.from, fromClient: op.fromClient }
     if (err) {
       // Occassional 'Op already submitted' errors are expected to happen as
       // part of normal operation, since inflight ops need to be resent after
@@ -564,6 +560,11 @@ Agent.prototype._submit = function(collection, id, op, callback) {
       if (err.code === 4001) return callback(null, ack);
       return callback(err);
     }
+
+     // // 如果来自mqtt，并且不是本 agent 发送的，直接发送 op 包
+     //  if (request.from == 'mqtt' && request.fromClient != this.clientId) {
+     //    return this._sendOp(request.c, request.d, op, () => {})
+     //  }
 
     // Reply with any operations that the client is missing.
     agent._sendOps(collection, id, ops);
